@@ -23,7 +23,7 @@ def get_gemini_content():
     - Keep it professional and insightful.
     """
     
-    response = client.models.generate_content(model="gemini-3-flash", contents=prompt)
+    response = client.models.generate_content(model="gemini-3-flash-preview", contents=prompt)
     return response.text
 
 def post_to_linkedin(content):
