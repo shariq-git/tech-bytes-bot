@@ -1,56 +1,35 @@
-name: Tech Bytes with Approval Gate
+name: CI
+
 on:
-  schedule:
-    - cron: '30 3 * * 1,3,5' # 9:00 AM IST
-  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+      - name: Install dependencies
+        run: npm install
+      - name: Run tests
+        run: npm test
+
+  keyword:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Add keyword
+        run: echo 'Adding keyword'
 
 permissions:
-  contents: read
-  deployments: write
-
-generate:
-    runs-on: ubuntu-latest
-    outputs:
-      post_content: ${{ steps.gen.outputs.post_body }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-      - run: pip install google-genai
-      - name: Generate Content
-        id: gen
-        run: |
-          # Generate the content and save to a temporary file
-          python post_tech_bytes.py propose > draft.txt
-          
-          # Print a clear preview for you to see in the logs
-          echo "=========================================="
-          echo "🚀 PREVIEW OF TODAY'S POST:"
-          echo "=========================================="
-          cat draft.txt
-          echo "=========================================="
-          
-          # Set the output for the next job
-          echo "post_body<<EOF" >> $GITHUB_OUTPUT
-          cat draft.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-
-  publish:
-    needs: generate
-    runs-on: ubuntu-latest
-    # This must match the environment name you created in the UI
-    environment: Production
-    steps:
-      - uses: actions/checkout@v4
-      - name: Post to LinkedIn
-        run: |
-          # Use the output from the 'generate' job
-          python post_tech_bytes.py post
-        env:
-          LINKEDIN_TOKEN: ${{ secrets.LINKEDIN_TOKEN }}
-          LINKEDIN_AUTHOR_ID: ${{ secrets.LINKEDIN_AUTHOR_ID }}
-          POST_CONTENT: ${{ needs.generate.outputs.post_content }}
+  issues: write
