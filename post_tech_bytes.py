@@ -14,7 +14,7 @@ def get_gemini_content():
     # Advanced SRE/DevOps topics
     prompt = """
     Write a high-quality, technical LinkedIn post titled '🚀 Tech Bytes'.
-    Topic: Advanced DevOps/SRE (e.g., K8s internals, Docker security, or Cloud Architecture).
+    Topic: Advanced DevOps/SRE (e.g., K8s internals, Docker security,AWS ,Azure or Cloud Architecture).
     Requirements:
     - Start with a catchy hook.
     - Include one deep-dive technical 'Did you know?' point.
