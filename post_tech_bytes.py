@@ -15,7 +15,7 @@ def get_gemini_content():
     # Logic to pick topic based on day
     day = datetime.datetime.now().strftime("%A")
     topic_map = {
-        "Monday": "Kubernetes internals (e.g., ETCD, Control Plane, or CRDs)",
+        "Monday": "Kubernetes trends and working ",
         "Wednesday": "AWS Cloud Architecture (e.g., EKS, IAM, or Lambda scaling)",
         "Friday": "Azure Infrastructure (e.g., AKS, App Services, or VNet peering)"
     }
