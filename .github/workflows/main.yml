@@ -1,0 +1,20 @@
+name: Tech Bytes Bot
+on:
+  schedule:
+    - cron: '30 3 * * 1,3,5' # 3:30 AM UTC = 9:00 AM IST
+  workflow_dispatch: # Allows you to run it manually to test
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - run: pip install -r requirements.txt
+      - run: python post_tech_bytes.py
+        env:
+          LINKEDIN_TOKEN: ${{ secrets.LINKEDIN_TOKEN }}
+          LINKEDIN_AUTHOR_ID: ${{ secrets.LINKEDIN_AUTHOR_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
