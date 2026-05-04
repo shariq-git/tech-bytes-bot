@@ -1,45 +1,57 @@
-name: CI
-
+name: Tech Bytes with Approval Gate
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
-  workflow_dispatch: # Allows you to start it manually for testing
+  workflow_dispatch: # This allows you to trigger it manually to test the prompt
 
 permissions:
   contents: read
-  issues: write
+  deployments: write # Required to trigger the environment gate
 
 jobs:
-  build:
+  generate:
     runs-on: ubuntu-latest
+    outputs:
+      post_content: ${{ steps.gen.outputs.post_body }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python # Updated from Node.js to match your DevOps/SRE projects
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          
+      - run: pip install google-genai requests
 
-      - name: Install dependencies
+      - name: Generate Content
+        id: gen
         run: |
-          pip install google-genai requests
-          # If you have a requirements.txt, use: pip install -r requirements.txt
-
-      - name: Run Script
-        run: python post_tech_bytes.py propose
+          # Generate the content and show it in the logs for review
+          python post_tech_bytes.py propose > draft.txt
+          echo "=========================================="
+          echo "🚀 PREVIEW OF TODAY'S POST:"
+          echo "=========================================="
+          cat draft.txt
+          echo "=========================================="
+          
+          # Save to output variable for the next job
+          echo "post_body<<EOF" >> $GITHUB_OUTPUT
+          cat draft.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
-  keyword:
+  publish:
+    needs: generate
     runs-on: ubuntu-latest
+    # CRITICAL: This name must match exactly what you named your Environment in Settings
+    environment: Production 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        
-      - name: Add keyword
-        run: echo 'Adding keyword'
+      - uses: actions/checkout@v4
+      - name: Post to LinkedIn
+        run: python post_tech_bytes.py post
+        env:
+          LINKEDIN_TOKEN: ${{ secrets.LINKEDIN_TOKEN }}
+          LINKEDIN_AUTHOR_ID: ${{ secrets.LINKEDIN_AUTHOR_ID }}
+          POST_CONTENT: ${{ needs.generate.outputs.post_content }}
