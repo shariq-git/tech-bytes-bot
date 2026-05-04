@@ -12,22 +12,28 @@ jobs:
     if: |
       github.event_name == 'schedule' || 
       github.event_name == 'workflow_dispatch' || 
-      contains(github.event.comment.body, '/regenerate')
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/regenerate'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: pip install google-genai requests
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          
+      - name: Install Dependencies
+        run: pip install google-genai requests
+
       - name: Generate Content
         id: gen
         run: |
-          CONTENT=$(python post_tech_bytes.py propose)
-          echo "post_body<<EOF" >> $GITHUB_OUTPUT
-          echo "$CONTENT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          # Redirecting output to a physical file for the issue creator to read
+          python post_tech_bytes.py propose > post_body
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
-      - name: Create or Update Issue
+      - name: Create Approval Issue
         uses: peter-evans/create-issue-from-file@v5
         if: github.event_name != 'issue_comment'
         with:
@@ -42,8 +48,9 @@ jobs:
           issue-number: ${{ github.event.issue.number }}
           body: |
             ### 🔄 New Draft Generated:
-            ${{ steps.gen.outputs.post_body }}
+            $(cat post_body)
             
+            ---
             Reply with `/approve` to post this, or `/regenerate` again.
 
   publish:
@@ -52,13 +59,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          
       - run: pip install requests
+      
       - name: Post to LinkedIn
         run: python post_tech_bytes.py post
         env:
           LINKEDIN_TOKEN: ${{ secrets.LINKEDIN_TOKEN }}
           LINKEDIN_AUTHOR_ID: ${{ secrets.LINKEDIN_AUTHOR_ID }}
-          # Captures the text from the issue description
+          # Captures the text from the issue description/body
           POST_CONTENT: ${{ github.event.issue.body }}
       
       - name: Close Issue on Success
