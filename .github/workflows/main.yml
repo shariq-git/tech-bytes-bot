@@ -5,7 +5,11 @@ on:
   issue_comment:
     types: [created]
   workflow_dispatch:
-
+# ADD THIS SECTION HERE
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
 jobs:
   propose-or-regenerate:
     # Runs on schedule, manual trigger, OR when you comment /regenerate
