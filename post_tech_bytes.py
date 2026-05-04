@@ -14,23 +14,31 @@ def get_gemini_content():
     
     # Logic to pick topic based on day
     day = datetime.datetime.now().strftime("%A")
+    # Modified to include specific 'Pain Points' for better engagement
     topic_map = {
-        "Monday": "Kubernetes trends and working ",
-        "Wednesday": "AWS Cloud Architecture (e.g., EKS, IAM, or Lambda scaling)",
-        "Friday": "Azure Infrastructure (e.g., AKS, App Services, or VNet peering)"
+        "Monday": "Kubernetes: Resource Requests vs. Limits and the 'Silent' OOMKill mystery.",
+        "Wednesday": "AWS Cloud Architecture: Scaling Lambda for massive bursts without hitting concurrency walls.",
+        "Friday": "Azure Infrastructure: Troubleshooting Transitive Routing in Hub-and-Spoke VNet peering."
     }
-    current_topic = topic_map.get(day, "DevOps and SRE best practices")
-
-    prompt = f"""
-    Write a high-quality, technical LinkedIn post titled '🚀 Tech Bytes'.
-    Topic: {current_topic}.
-    Requirements:
-    - Start with a catchy hook.
-    - Include one deep-dive technical 'Did you know?' point.
-    - Use exactly 5 hashtags including #TechBytes #SRE #DevOps.
-    - Keep it professional and insightful.
-    """
     
+    current_topic = topic_map.get(day, "SRE & DevOps: Building resilient, cost-effective infrastructure.")
+
+    # Modified prompt for 'Scroll-Stopping' structure and technical depth
+    prompt = f"""
+    Role: Senior SRE / DevOps Architect.
+    Task: Write a high-quality, technical LinkedIn post titled '🚀 Tech Bytes'.
+    Topic: {current_topic}.
+    
+    Requirements:
+    1. Hook: Start with a contrarian take or a common 'production horror story' related to the topic.
+    2. Deep Dive: Include one 'Did you know?' point that explains a non-obvious technical behavior (e.g., how the kernel handles cgroups or how Azure routing tables prioritize UDRs).
+    3. Structure: Use short sentences and plenty of white space. No dense paragraphs.
+    4. Practical Value: End with a 1-sentence tip on how to monitor or fix this issue.
+    5. Hashtags: Exactly 5 hashtags, including #TechBytes #SRE #DevOps.
+    
+    Tone: Professional, slightly opinionated, and highly practical. Avoid corporate fluff like 'passionate' or 'leverage'.
+    """
+
     # Using the preview model name as we discovered earlier
     response = client.models.generate_content(model="gemini-3-flash-preview", contents=prompt)
     return response.text
