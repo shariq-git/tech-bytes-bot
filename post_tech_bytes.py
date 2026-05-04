@@ -11,16 +11,29 @@ GEM_KEY = os.environ['GEMINI_API_KEY']
 def get_gemini_content():
     client = genai.Client(api_key=GEM_KEY)
     
-    # Advanced SRE/DevOps topics
-    prompt = """
+    # Get current day of the week
+    day = datetime.datetime.now().strftime("%A")
+    
+    # Assign topic based on your specific schedule
+    topic_map = {
+        "Monday": "Kubernetes internals (e.g., ETCD, Control Plane, or CRDs)",
+        "Wednesday": "AWS Cloud Architecture (e.g., EKS, IAM, or Lambda scaling)",
+        "Friday": "Azure Infrastructure (e.g., Azure Kubernetes Service (AKS), App Services, or VNet peering)"
+    }
+    
+    # Default topic if the day doesn't match (for manual runs)
+    current_topic = topic_map.get(day, "DevOps and SRE best practices")
+
+    prompt = f"""
     Write a high-quality, technical LinkedIn post titled '🚀 Tech Bytes'.
-    Topic: Advanced DevOps/SRE (e.g., K8s internals, Docker security,AWS ,Azure or Cloud Architecture).
+    Specific Topic for today: {current_topic}.
+    
     Requirements:
-    - Start with a catchy hook.
-    - Include one deep-dive technical 'Did you know?' point.
+    - Start with a catchy hook for a technical audience.
+    - Include one "Deep Dive" fact or advanced technical tip about {current_topic}.
+    - Mention why this is critical for modern SRE/DevOps workflows.
     - Add a timestamp: '🕒 Posted at [Current Time] IST'.
-    - Use exactly 5 hashtags including #TechBytes #SRE #DevOps.
-    - Keep it professional and insightful.
+    - Use exactly 5 hashtags including #TechBytes #SRE #DevOps and the specific platform (e.g., #Kubernetes, #AWS, or #Azure).
     """
     
     response = client.models.generate_content(model="gemini-3-flash-preview", contents=prompt)
@@ -51,4 +64,3 @@ if __name__ == "__main__":
     content = get_gemini_content()
     res = post_to_linkedin(content)
     print(f"Status Code: {res.status_code}")
-    print(f"Response: {res.text}")
