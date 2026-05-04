@@ -1,86 +1,48 @@
-name: Tech Bytes with Approval
+name: Tech Bytes with Approval Gate
 on:
   schedule:
     - cron: '30 3 * * 1,3,5' # 9:00 AM IST
-  issue_comment:
-    types: [created]
   workflow_dispatch:
-# ADD THIS SECTION HERE
+
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+  contents: read
+  deployments: write
+
 jobs:
-  propose-or-regenerate:
-    # Runs on schedule, manual trigger, OR when you comment /regenerate
-    if: |
-      github.event_name == 'schedule' || 
-      github.event_name == 'workflow_dispatch' || 
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/regenerate'))
+  generate:
     runs-on: ubuntu-latest
+    outputs:
+      post_content: ${{ steps.gen.outputs.post_body }}
     steps:
       - uses: actions/checkout@v4
-      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          
-      - name: Install Dependencies
-        run: pip install google-genai requests
-
+      - run: pip install google-genai
       - name: Generate Content
         id: gen
         run: |
-          # Redirecting output to a physical file for the issue creator to read
-          python post_tech_bytes.py propose > post_body
+          # The 'propose' mode in your script handles the K8s/AWS/Azure rotation
+          CONTENT=$(python post_tech_bytes.py propose)
+          echo "post_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
-      - name: Create Approval Issue
-        uses: peter-evans/create-issue-from-file@v5
-        if: github.event_name != 'issue_comment'
-        with:
-          title: "🚀 Review Tech Byte Draft"
-          content-filepath: ./post_body
-          labels: "approval-required"
-
-      - name: Reply to Regenerate
-        if: github.event_name == 'issue_comment'
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          issue-number: ${{ github.event.issue.number }}
-          body: |
-            ### 🔄 New Draft Generated:
-            $(cat post_body)
-            
-            ---
-            Reply with `/approve` to post this, or `/regenerate` again.
-
   publish:
-    # Only runs when you comment /approve
-    if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/approve')
+    needs: generate
     runs-on: ubuntu-latest
+    # This must match the environment name you created in the UI
+    environment: Production
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-          
-      - run: pip install requests
-      
       - name: Post to LinkedIn
-        run: python post_tech_bytes.py post
+        run: |
+          # Use the output from the 'generate' job
+          python post_tech_bytes.py post
         env:
           LINKEDIN_TOKEN: ${{ secrets.LINKEDIN_TOKEN }}
           LINKEDIN_AUTHOR_ID: ${{ secrets.LINKEDIN_AUTHOR_ID }}
-          # Captures the text from the issue description/body
-          POST_CONTENT: ${{ github.event.issue.body }}
-      
-      - name: Close Issue on Success
-        uses: peter-evans/close-issue@v3
-        with:
-          issue-number: ${{ github.event.issue.number }}
-          comment: "✅ Successfully posted to LinkedIn!"
+          POST_CONTENT: ${{ needs.generate.outputs.post_content }}
