@@ -8,8 +8,7 @@ permissions:
   contents: read
   deployments: write
 
-jobs:
-  generate:
+generate:
     runs-on: ubuntu-latest
     outputs:
       post_content: ${{ steps.gen.outputs.post_body }}
@@ -23,10 +22,19 @@ jobs:
       - name: Generate Content
         id: gen
         run: |
-          # The 'propose' mode in your script handles the K8s/AWS/Azure rotation
-          CONTENT=$(python post_tech_bytes.py propose)
+          # Generate the content and save to a temporary file
+          python post_tech_bytes.py propose > draft.txt
+          
+          # Print a clear preview for you to see in the logs
+          echo "=========================================="
+          echo "🚀 PREVIEW OF TODAY'S POST:"
+          echo "=========================================="
+          cat draft.txt
+          echo "=========================================="
+          
+          # Set the output for the next job
           echo "post_body<<EOF" >> $GITHUB_OUTPUT
-          echo "$CONTENT" >> $GITHUB_OUTPUT
+          cat draft.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
