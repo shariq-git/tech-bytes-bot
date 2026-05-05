@@ -16,22 +16,22 @@ def get_gemini_content():
     now = datetime.datetime.now()
     day_name = now.strftime("%A")
     
-    # Unique seed ensures the AI doesn't repeat scenarios even on the same topic
+    # Unique seed ensures the AI doesn't repeat scenarios
     random_seed = now.strftime("%Y%m%d%H%M")
     
     # 6-Day Professional Schedule
-themes = {
-    "Monday": "Deep Dive: Advanced Kubernetes & Container Orchestration (Infra Focus)",
-    "Tuesday": "AWS Architecture & Scalability (EKS, Networking, Storage)",
-    "Wednesday": "Azure Infra & Reliability (AKS, Entra ID)",
-    "Thursday": "Infrastructure as Code (Terraform & OpenTofu)",
-    "Friday": "Observability & SRE Toil Reduction (eBPF, OpenTelemetry, Datadog, ELK, Grafana)",
-    "Saturday": "Senior SRE/DevOps Interview Prep (Scenario-based questions)"
-}
+    themes = {
+        "Monday": "Deep Dive: Advanced Kubernetes & Container Orchestration (Infra Focus)",
+        "Tuesday": "AWS Architecture & Scalability (EKS, Networking, Storage)",
+        "Wednesday": "Azure Infra & Reliability (AKS, Entra ID)",
+        "Thursday": "Infrastructure as Code (Terraform & OpenTofu)",
+        "Friday": "Observability & SRE Toil Reduction (eBPF, OpenTelemetry, Datadog, ELK, Grafana)",
+        "Saturday": "Senior SRE/DevOps Interview Prep (Scenario-based questions)"
+    }
 
-current_theme = themes.get(day_name, "General DevOps & Platform Engineering")
+    current_theme = themes.get(day_name, "General DevOps & Platform Engineering")
 
-prompt = f"""
+    prompt = f"""
 System: You are a Senior SRE with 6+ years of hands-on production experience in cloud-native systems.
 
 Current Date: {now.strftime('%Y-%m-%d')}
@@ -44,48 +44,43 @@ Focus Area: {current_theme}
 Content Requirements:
 
 1. Structure:
-   - Start with a strong hook (pain point, bold statement, or surprising production issue)
-   - Follow with a real-world scenario (highly specific, no generic explanations)
-   - Deliver a clear solution with technical depth
-   - End with a short takeaway or insight
+   - Start with a strong hook
+   - Real-world scenario (no generic explanations)
+   - Clear solution with technical depth
+   - End with takeaway
 
 2. Day-specific rules:
-   - Mon–Fri → Use a Problem → Investigation → Solution format
-   - Saturday → Provide 3 scenario-based interview questions + concise pro-tips
+   - Mon–Fri → Problem → Investigation → Solution
+   - Saturday → 3 interview questions + pro-tips
 
 3. Technical Depth:
-   - Include modern (2025–2026) practices like Gateway API, eBPF, Zero Trust, platform engineering, etc.
-   - Mention specific tools, configs, or architecture decisions where relevant
+   - Use 2025–2026 practices (Gateway API, eBPF, Zero Trust)
 
-4. Writing Style:
-   - Concise but insightful (avoid fluff)
-   - Human, slightly opinionated tone (like a real engineer sharing experience)
-   - Avoid textbook definitions
+4. Style:
+   - Concise, human, slightly opinionated
+   - Avoid textbook tone
 
-5. Output Formatting:
-   - Use clean spacing for readability
-   - Include bullet points where helpful
-   - Add a timestamp line:
-     🕒 2026 Insights | {now.strftime('%H:%M')} IST
+5. Timestamp:
+   🕒 2026 Insights | {now.strftime('%H:%M')} IST
 
 6. Hashtags:
-   - Exactly 5 hashtags
-   - Must include: #TechBytes #SRE #DevOps
-   - Others should be relevant to the topic
+   - Exactly 5 (#TechBytes #SRE #DevOps + 2 relevant)
 
 Goal:
-Make the post feel like it came from a real Senior SRE sharing a production lesson — not AI-generated content.
+Real Senior SRE vibe — not AI-generated.
 """
-       
+
     response = client.models.generate_content(
-        model="gemini-3-flash-preview", 
+        model="gemini-2.5-flash",   # safer/stable model
         contents=prompt
     )
+
     return response.text.strip()
+
 
 def post_to_linkedin(content):
     """Publishes the generated content to LinkedIn via UGC API."""
-    # Priority: Content passed via environment variable (from GitHub Output)
+    
     content_to_post = os.environ.get('POST_CONTENT', content)
     
     if not content_to_post:
@@ -110,18 +105,19 @@ def post_to_linkedin(content):
         },
         "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
     }
+
     return requests.post(url, headers=headers, json=data)
 
+
 if __name__ == "__main__":
-    # Support for the two-stage GitHub Action workflow
     mode = sys.argv[1] if len(sys.argv) > 1 else "propose"
     
     if mode == "propose":
-        # This print is critical for the 'cat' command in YAML to work
         final_content = get_gemini_content()
         print(final_content)
+
     elif mode == "post":
-        res = post_to_linkedin("") 
+        res = post_to_linkedin("")
         if res:
             print(f"LinkedIn Status Code: {res.status_code}")
             if res.status_code != 201:
