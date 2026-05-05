@@ -71,7 +71,7 @@ Real Senior SRE vibe — not AI-generated.
 """
 
     response = client.models.generate_content(
-        model="gemini-2.5-flash",   # safer/stable model
+        model="gemini-3-flash-preview",   # safer/stable model
         contents=prompt
     )
 
