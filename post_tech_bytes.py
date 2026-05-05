@@ -1,52 +1,100 @@
 import os
+import requests
 import datetime
+import sys
 import random
 from google import genai
 
+# Load secrets from GitHub Environment
+L_TOKEN = os.environ.get('LINKEDIN_TOKEN')
+L_AUTH_ID = os.environ.get('LINKEDIN_AUTHOR_ID')
+GEM_KEY = os.environ.get('GEMINI_API_KEY')
+
 def get_gemini_content():
-    client = genai.Client(api_key=os.environ.get('GEMINI_API_KEY'))
+    """Generates unique, randomized SRE content based on the day of the week."""
+    client = genai.Client(api_key=GEM_KEY)
     now = datetime.datetime.now()
     day_name = now.strftime("%A")
     
-    # 1. Create a unique seed based on the exact minute to ensure total randomness
+    # Unique seed ensures the AI doesn't repeat scenarios even on the same topic
     random_seed = now.strftime("%Y%m%d%H%M")
     
-    # 2. Define the Daily Theme (Broad categories to allow AI creativity)
+    # 6-Day Professional Schedule
     themes = {
-        "Monday": "Advanced Kubernetes & Container Orchestration",
-        "Tuesday": "AWS Cloud Architecture & Scaling",
-        "Wednesday": "Azure Infrastructure & Enterprise Security",
-        "Thursday": "Infrastructure as Code (Terraform & OpenTofu)",
-        "Friday": "Observability, Monitoring & SRE Toil Reduction",
-        "Saturday": "Senior SRE/DevOps Interview Scenarios"
+        "Monday": "Advanced Kubernetes & Container Orchestration (Deep Infra)",
+        "Tuesday": "AWS Cloud Architecture & Scalability (EKS, Lambda, Networking)",
+        "Wednesday": "Azure Infrastructure & Enterprise Reliability (AKS, Entra ID)",
+        "Thursday": "Infrastructure as Code (Terraform & OpenTofu Best Practices)",
+        "Friday": "Observability & SRE Toil Reduction (eBPF, OpenTelemetry)",
+        "Saturday": "Senior SRE/DevOps Interview Prep (Scenario-based questions)"
     }
     
-    current_theme = themes.get(day_name, "DevOps Engineering")
+    current_theme = themes.get(day_name, "General DevOps & Platform Engineering")
 
-    # 3. The "Freshness" Prompt
-    # We instruct the AI to invent a unique, specific problem every time.
     prompt = f"""
-    Seed ID: {random_seed}
+    System: You are a Senior SRE with 6 years of experience.
     Current Date: {now.strftime('%Y-%m-%d')}
-    Role: Senior SRE/DevOps Architect (6+ years experience).
+    Seed ID: {random_seed}
     
-    Task: Write a LinkedIn post titled '🚀 Tech Bytes' for {day_name}.
-    Daily Theme: {current_theme}.
+    Task: Write a LinkedIn post titled '🚀 Tech Bytes'.
+    Focus: {current_theme}
     
-    CRITICAL INSTRUCTION FOR FRESHNESS:
-    - Do NOT provide a generic overview. 
-    - Invent a HIGHLY SPECIFIC, complex technical 'Problem' related to {current_theme} that an engineer might face in 2026.
-    - Provide a 'Solution' using modern engineering patterns (e.g., eBPF, GitOps, Platform Engineering, Zero-Trust).
-    - Ensure this specific scenario has not been used in previous 'Tech Bytes' posts.
-    
-    Format:
-    1. Catchy hook.
-    2. The Problem (The Hurdle).
-    3. The Solution (The Deep Dive).
-    4. Why it matters for SREs.
-    5. Timestamp: 🕒 2026 Live Lab | {now.strftime('%H:%M')} IST.
-    6. Exactly 5 hashtags including #TechBytes #SRE #DevOps.
+    Requirements:
+    1. For Mon-Fri: Use a 'Problem-Solution' framework. Invent a highly specific, 
+       real-world engineering hurdle (no generic definitions).
+    2. For Saturday: Provide 3 high-quality interview questions with brief pro-tips.
+    3. Standards: Use 2026 technical context (e.g., Gateway API, eBPF, Zero-Trust).
+    4. Style: Catchy hook, high technical depth, and concise.
+    5. Timestamp: 🕒 2026 Insights | {now.strftime('%H:%M')} IST.
+    6. Hashtags: Exactly 5, including #TechBytes #SRE #DevOps.
     """
     
-    response = client.models.generate_content(model="gemini-3-flash-preview", contents=prompt)
+    response = client.models.generate_content(
+        model="gemini-3-flash-preview", 
+        contents=prompt
+    )
     return response.text.strip()
+
+def post_to_linkedin(content):
+    """Publishes the generated content to LinkedIn via UGC API."""
+    # Priority: Content passed via environment variable (from GitHub Output)
+    content_to_post = os.environ.get('POST_CONTENT', content)
+    
+    if not content_to_post:
+        print("Error: No content found to post.")
+        return None
+
+    url = "https://api.linkedin.com/v2/ugcPosts"
+    headers = {
+        "Authorization": f"Bearer {L_TOKEN}",
+        "Content-Type": "application/json",
+        "X-Restli-Protocol-Version": "2.0.0"
+    }
+    
+    data = {
+        "author": L_AUTH_ID,
+        "lifecycleState": "PUBLISHED",
+        "specificContent": {
+            "com.linkedin.ugc.ShareContent": {
+                "shareCommentary": {"text": content_to_post},
+                "shareMediaCategory": "NONE"
+            }
+        },
+        "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
+    }
+    return requests.post(url, headers=headers, json=data)
+
+if __name__ == "__main__":
+    # Support for the two-stage GitHub Action workflow
+    mode = sys.argv[1] if len(sys.argv) > 1 else "propose"
+    
+    if mode == "propose":
+        # This print is critical for the 'cat' command in YAML to work
+        final_content = get_gemini_content()
+        print(final_content)
+    elif mode == "post":
+        res = post_to_linkedin("") 
+        if res:
+            print(f"LinkedIn Status Code: {res.status_code}")
+            if res.status_code != 201:
+                print(f"Response: {res.text}")
