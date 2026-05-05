@@ -24,8 +24,8 @@ def get_gemini_content():
         "Monday": "Deep Dive: Advanced Kubernetes & Container Orchestration (Infra Focus)",
         "Tuesday": "AWS Architecture & Scalability (EKS, Networking, Storage)",
         "Wednesday": "Azure Infra & Reliability (AKS, Entra ID)",
-        "Thursday": "Infrastructure as Code (Terraform & OpenTofu)",
-        "Friday": "Observability & SRE Toil Reduction (eBPF, OpenTelemetry, Datadog, ELK, Grafana)",
+        "Thursday": "Infrastructure as Code (Terraform)",
+        "Friday": "Observability & SRE Toil Reduction (OpenTelemetry, Datadog, ELK, Grafana)",
         "Saturday": "Senior SRE/DevOps Interview Prep (Scenario-based questions)"
     }
 
