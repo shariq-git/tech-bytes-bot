@@ -1,2 +1,7 @@
 google-genai
 requests
+kubernetes
+boto3
+azure-mgmt-compute
+PyYAML
+psutil
