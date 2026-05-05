@@ -20,35 +20,63 @@ def get_gemini_content():
     random_seed = now.strftime("%Y%m%d%H%M")
     
     # 6-Day Professional Schedule
-    themes = {
-        "Monday": "Advanced Kubernetes & Container Orchestration (Deep Infra)",
-        "Tuesday": "AWS Cloud Architecture & Scalability (EKS, Lambda, Networking)",
-        "Wednesday": "Azure Infrastructure & Enterprise Reliability (AKS, Entra ID)",
-        "Thursday": "Infrastructure as Code (Terraform & OpenTofu Best Practices)",
-        "Friday": "Observability & SRE Toil Reduction (eBPF, OpenTelemetry)",
-        "Saturday": "Senior SRE/DevOps Interview Prep (Scenario-based questions)"
-    }
-    
-    current_theme = themes.get(day_name, "General DevOps & Platform Engineering")
+themes = {
+    "Monday": "Deep Dive: Advanced Kubernetes & Container Orchestration (Infra Focus)",
+    "Tuesday": "AWS Architecture & Scalability (EKS, Networking, Storage)",
+    "Wednesday": "Azure Infra & Reliability (AKS, Entra ID)",
+    "Thursday": "Infrastructure as Code (Terraform & OpenTofu)",
+    "Friday": "Observability & SRE Toil Reduction (eBPF, OpenTelemetry, Datadog, ELK, Grafana)",
+    "Saturday": "Senior SRE/DevOps Interview Prep (Scenario-based questions)"
+}
 
-    prompt = f"""
-    System: You are a Senior SRE with 6 years of experience.
-    Current Date: {now.strftime('%Y-%m-%d')}
-    Seed ID: {random_seed}
-    
-    Task: Write a LinkedIn post titled '🚀 Tech Bytes'.
-    Focus: {current_theme}
-    
-    Requirements:
-    1. For Mon-Fri: Use a 'Problem-Solution' framework. Invent a highly specific, 
-       real-world engineering hurdle (no generic definitions).
-    2. For Saturday: Provide 3 high-quality interview questions with brief pro-tips.
-    3. Standards: Use 2026 technical context (e.g., Gateway API, eBPF, Zero-Trust).
-    4. Style: Catchy hook, high technical depth, and concise.
-    5. Timestamp: 🕒 2026 Insights | {now.strftime('%H:%M')} IST.
-    6. Hashtags: Exactly 5, including #TechBytes #SRE #DevOps.
-    """
-    
+current_theme = themes.get(day_name, "General DevOps & Platform Engineering")
+
+prompt = f"""
+System: You are a Senior SRE with 6+ years of hands-on production experience in cloud-native systems.
+
+Current Date: {now.strftime('%Y-%m-%d')}
+Seed ID: {random_seed}
+
+Task: Write a high-impact LinkedIn post titled '🚀 Tech Bytes'.
+
+Focus Area: {current_theme}
+
+Content Requirements:
+
+1. Structure:
+   - Start with a strong hook (pain point, bold statement, or surprising production issue)
+   - Follow with a real-world scenario (highly specific, no generic explanations)
+   - Deliver a clear solution with technical depth
+   - End with a short takeaway or insight
+
+2. Day-specific rules:
+   - Mon–Fri → Use a Problem → Investigation → Solution format
+   - Saturday → Provide 3 scenario-based interview questions + concise pro-tips
+
+3. Technical Depth:
+   - Include modern (2025–2026) practices like Gateway API, eBPF, Zero Trust, platform engineering, etc.
+   - Mention specific tools, configs, or architecture decisions where relevant
+
+4. Writing Style:
+   - Concise but insightful (avoid fluff)
+   - Human, slightly opinionated tone (like a real engineer sharing experience)
+   - Avoid textbook definitions
+
+5. Output Formatting:
+   - Use clean spacing for readability
+   - Include bullet points where helpful
+   - Add a timestamp line:
+     🕒 2026 Insights | {now.strftime('%H:%M')} IST
+
+6. Hashtags:
+   - Exactly 5 hashtags
+   - Must include: #TechBytes #SRE #DevOps
+   - Others should be relevant to the topic
+
+Goal:
+Make the post feel like it came from a real Senior SRE sharing a production lesson — not AI-generated content.
+"""
+       
     response = client.models.generate_content(
         model="gemini-3-flash-preview", 
         contents=prompt
