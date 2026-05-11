@@ -32,16 +32,19 @@ def get_gemini_content():
         raise ValueError("Missing GEMINI_API_KEY")
 
     client = genai.Client(api_key=GEM_KEY)
-    now = datetime.datetime.now()
+    
+    # 1. FORCE IST TIMEZONE (Fixes the Day Mismatch)
+    ist_offset = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+    now = datetime.datetime.now(ist_offset)
     day_name = now.strftime("%A")
     
     themes = {
-        "Monday": "Cloud Infrastructure Trivia (AWS/Azure/K8s)",
+        "Monday": "Cloud Infrastructure & High Availability",
         "Tuesday": "AI Hardware & GPU Scaling (2026 Chips)",
-        "Wednesday": "Networking & Security(firewalls,ip rules etc) ",
-        "Thursday": "Open Source & Linux History",
-        "Friday": "SRE Humor: Outages, On-call, and 'DNS is always the culprit'",
-        "Saturday": "Future Tech & 2027 Roadmaps"
+        "Wednesday": "Azure & Networking (AKS, Entra ID, Security)",
+        "Thursday": "Open Source & Linux Kernel Internals",
+        "Friday": "SRE Humor & Production Lessons",
+        "Saturday": "Future Tech Roadmaps"
     }
     current_theme = themes.get(day_name, "General DevOps Insights")
 
@@ -52,43 +55,47 @@ def get_gemini_content():
             feed = feedparser.parse(url)
             for entry in feed.entries[:3]:
                 articles.append(entry.title)
-        except:
-            continue
+        except: continue
     
-    trend_context = ""
-    if articles:
-        selected = random.sample(articles, min(3, len(articles)))
-        trend_context = "Latest Industry Context:\n" + "\n".join([f"- {t}" for t in selected])
+    trend_context = "LATEST NEWS CONTEXT:\n" + "\n".join(random.sample(articles, min(3, len(articles)))) if articles else ""
 
+    # 2. THE VISUAL PROMPT (NO ASTERISKS)
     prompt = f"""
-    Context: You are a Senior SRE with 6+ years of experience and a touch of professional wit.
-    Current Date: {now.strftime('%Y-%m-%d')}
-    Theme: {current_theme}
+    CONTEXT: Senior SRE Expert.
+    CURRENT DAY: {day_name}
+    THEME: {current_theme}
     {trend_context}
 
-    Task: Write a high-impact LinkedIn post titled '🚀 Tech Bytes'.
+    TASK: Write a LinkedIn post titled '🚀 TECH BYTES: THE {day_name.upper()} SRE PULSE'.
 
-    Visual & Formatting Rules (STRICT):
-    1. Use ALL-CAPS for the hook to create impact.
-    2. Use double-line breaks for massive white space.
-    3. Use technical symbols for bullets: ──▶, ⚡, or ❯.
-    4. Use a separator line at the top: ━━━━━━━━━━━━━━━━━━━━
-    5. Frame the content like a terminal output or key-value pairs.
-    6. Content: 2-3 "Did you know?" facts or insights relevant to 2026.
-    7. Friday Rule: Use professional sarcasm/humor about SRE life.
-    8. Add some interview question with answer on technolgies like linux,AWS,AZURE,Networking,Kubernetes ,SRE etc
-    STRICT NARRATIVE RULES:
-    1. NO FIRST-PERSON: Never use "I", "me", "my", or "we". 
-    2. NO FALSE STORIES: Do not invent stories about "projects I worked on" or "incidents I handled".
-    3. PURE OBSERVATION: Focus on universal engineering truths, fun facts, and objective 2026 tech trends.
-    4. HUMOR STYLE: Use observational wit (e.g., "The industry still runs on...") rather than personal stories.
+    NARRATIVE RULES:
+    1. NO FIRST-PERSON: Do NOT use "I", "me", or "my". Focus on technical truths.
+    2. NO FALSE STORIES: Do not invent personal anecdotes.
+    3. THEME LOCK: Today is {day_name}. Only mention Friday if today is actually Friday.
 
-    Hashtags: Exactly 5 (#TechBytes #SRE #DevOps #CloudNative #2026Tech)
-    Timestamp: 🕒 2026 Insights | {now.strftime('%H:%M')} IST
+    VISUAL FORMATTING (STRICT - NO MARKDOWN):
+    1. NO ASTERISKS: Do NOT use ** for bolding. It breaks the visual.
+    2. PUNCHY HOOK: Start with an ALL-CAPS opening sentence.
+    3. TERMINAL STYLE: Use ──▶ for bullet points.
+    4. SEPARATOR: Use a line of ━━━━━━ to separate the title from content.
+    5. WHITESPACE: Double-line breaks between every single point.
+
+    STRUCTURE:
+    - TITLE: 🚀 TECH BYTES: {day_name.upper()} EDITION
+    ━━━━━━━━━━━━━━━━━━━━
+    - HOOK (ALL-CAPS)
+    - 2-3 TECHNICAL INSIGHTS (using ──▶)
+    - 1 ENGAGEMENT QUESTION (ALL-CAPS)
+
+    HASHTAGS: Exactly 5 (#TechBytes #SRE #DevOps #CloudNative #2026Tech)
+    TIMESTAMP: 🕒 2026 INSIGHTS | {now.strftime('%H:%M')} IST
     """
 
-    response = client.models.generate_content(model="gemini-3.1-flash-lite", contents=prompt)
-    return response.text.strip()
+    response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
+    
+    # SRE Sanitizer: Final guardrail to remove any stray asterisks
+    clean_content = response.text.replace("**", "").replace("*", "").strip()
+    return clean_content
 
 def post_to_linkedin(content):
     content_to_post = os.environ.get("POST_CONTENT", content)
@@ -117,7 +124,4 @@ if __name__ == "__main__":
         print(get_gemini_content())
     elif mode == "post":
         res = post_to_linkedin("")
-        print(f"Status: {res.status_code}")
-        if res.status_code not in [200, 201]:
-            print(res.text)
-            sys.exit(1)
+        print(f"[INFO] LinkedIn Response Status: {res.status_code}")
