@@ -81,7 +81,7 @@ def get_gemini_content():
     Timestamp: 🕒 2026 Insights | {now.strftime('%H:%M')} IST
     """
 
-    response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
+    response = client.models.generate_content(model="gemini-3.1-flash-lite", contents=prompt)
     return response.text.strip()
 
 def post_to_linkedin(content):
