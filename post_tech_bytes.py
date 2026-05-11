@@ -69,11 +69,11 @@ def get_gemini_content():
     Task: Write a high-impact LinkedIn post titled '🚀 Tech Bytes'.
 
     Visual & Formatting Rules (STRICT):
-    1. **Hook**: Start with a **bold, punchy opening hook** that stops the scroll.
-    2. **Spacing**: Use **double-line breaks** between points. Whitespace is critical!
-    3. **Bullets**: Use **🔹 or ⚡ emojis** exclusively as bullet points.
-    4. **Emphasis**: **Bold** all technical terms, version numbers, or metrics (e.g., **Kubernetes v1.35**, **99.9% Uptime**).
-    5. **The 2026 Factor**: Reference a futuristic but realistic tech milestone.
+    1. Use ALL-CAPS for the hook to create impact.
+    2. Use double-line breaks for massive white space.
+    3. Use technical symbols for bullets: ──▶, ⚡, or ❯.
+    4. Use a separator line at the top: ━━━━━━━━━━━━━━━━━━━━
+    5. Frame the content like a terminal output or key-value pairs.
     6. Content: 2-3 "Did you know?" facts or insights relevant to 2026.
     7. Friday Rule: Use professional sarcasm/humor about SRE life.
     8. Add some interview question with answer on technolgies like linux,AWS,AZURE,Networking,Kubernetes ,SRE etc
