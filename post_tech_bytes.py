@@ -91,7 +91,7 @@ def get_gemini_content():
     TIMESTAMP: 🕒 2026 INSIGHTS | {now.strftime('%H:%M')} IST
     """
 
-    response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
+    response = client.models.generate_content(model="gemini-1.5-flash-8b", contents=prompt)
     
     # SRE Sanitizer: Final guardrail to remove any stray asterisks
     clean_content = response.text.replace("**", "").replace("*", "").strip()
