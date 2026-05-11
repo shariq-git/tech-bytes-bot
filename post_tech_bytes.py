@@ -31,9 +31,9 @@ def get_gemini_content():
     if not GEM_KEY:
         raise ValueError("Missing GEMINI_API_KEY")
 
-    client = genai.Client(api_key=GEM_KEY)
+    # Use v1beta to ensure all model versions are accessible
+    client = genai.Client(api_key=GEM_KEY, http_options={'api_version': 'v1beta'})
     
-    # 1. FORCE IST TIMEZONE (Fixes the Day Mismatch)
     ist_offset = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
     now = datetime.datetime.now(ist_offset)
     day_name = now.strftime("%A")
@@ -48,7 +48,6 @@ def get_gemini_content():
     }
     current_theme = themes.get(day_name, "General DevOps Insights")
 
-    # Fetch RSS for context
     articles = []
     for url in RSS_FEEDS:
         try:
@@ -59,7 +58,6 @@ def get_gemini_content():
     
     trend_context = "LATEST NEWS CONTEXT:\n" + "\n".join(random.sample(articles, min(3, len(articles)))) if articles else ""
 
-    # 2. THE VISUAL PROMPT (NO ASTERISKS)
     prompt = f"""
     CONTEXT: Senior SRE Expert.
     CURRENT DAY: {day_name}
@@ -69,36 +67,50 @@ def get_gemini_content():
     TASK: Write a LinkedIn post titled '🚀 TECH BYTES: THE {day_name.upper()} SRE PULSE'.
 
     NARRATIVE RULES:
-    1. NO FIRST-PERSON: Do NOT use "I", "me", or "my". Focus on technical truths.
-    2. NO FALSE STORIES: Do not invent personal anecdotes.
-    3. THEME LOCK: Today is {day_name}. Only mention Friday if today is actually Friday.
+    1. NO FIRST-PERSON: Do NOT use "I", "me", or "my".
+    2. NO FALSE STORIES: Do not invent anecdotes.
+    3. THEME LOCK: Today is {day_name}.
 
     VISUAL FORMATTING (STRICT - NO MARKDOWN):
-    1. NO ASTERISKS: Do NOT use ** for bolding. It breaks the visual.
+    1. NO ASTERISKS: Do NOT use ** for bolding.
     2. PUNCHY HOOK: Start with an ALL-CAPS opening sentence.
     3. TERMINAL STYLE: Use ──▶ for bullet points.
-    4. SEPARATOR: Use a line of ━━━━━━ to separate the title from content.
-    5. WHITESPACE: Double-line breaks between every single point.
-
-    STRUCTURE:
-    - TITLE: 🚀 TECH BYTES: {day_name.upper()} EDITION
-    ━━━━━━━━━━━━━━━━━━━━
-    - HOOK (ALL-CAPS)
-    - 2-3 TECHNICAL INSIGHTS (using ──▶)
-    - 1 ENGAGEMENT QUESTION (ALL-CAPS)
+    4. SEPARATOR: Use ━━━━━━.
+    5. WHITESPACE: Double-line breaks between every point.
 
     HASHTAGS: Exactly 5 (#TechBytes #SRE #DevOps #CloudNative #2026Tech)
-    TIMESTAMP: 🕒 2026 INSIGHTS | {now.strftime('%H:%M')} IST
     """
 
-    response = client.models.generate_content(model="gemini-1.5-flash", contents=prompt)
-    
+    # --- MULTI-MODEL FALLBACK LOGIC ---
+    # We try Flash 1.5 first (most stable), then 2.0 (latest), then 8B (fastest fallback)
+    models_to_try = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b"]
+    response_text = ""
+
+    for model_id in models_to_try:
+        try:
+            print(f"[INFO] Attempting generation with {model_id}...")
+            response = client.models.generate_content(model=model_id, contents=prompt)
+            if response and response.text:
+                response_text = response.text
+                print(f"[SUCCESS] Content generated using {model_id}")
+                break
+        except Exception as e:
+            print(f"[WARN] {model_id} failed: {e}")
+            continue # Try next model in list
+
+    if not response_text:
+        raise RuntimeError("CRITICAL: All Gemini models failed to generate content.")
+
     # SRE Sanitizer: Final guardrail to remove any stray asterisks
-    clean_content = response.text.replace("**", "").replace("*", "").strip()
+    clean_content = response_text.replace("**", "").replace("*", "").strip()
     return clean_content
 
 def post_to_linkedin(content):
     content_to_post = os.environ.get("POST_CONTENT", content)
+    if not content_to_post:
+        print("[ERROR] No content found to post.")
+        return None
+
     url = "https://api.linkedin.com/v2/ugcPosts"
     headers = {
         "Authorization": f"Bearer {L_TOKEN}",
@@ -120,8 +132,15 @@ def post_to_linkedin(content):
 
 if __name__ == "__main__":
     mode = sys.argv[1] if len(sys.argv) > 1 else "propose"
-    if mode == "propose":
-        print(get_gemini_content())
-    elif mode == "post":
-        res = post_to_linkedin("")
-        print(f"[INFO] LinkedIn Response Status: {res.status_code}")
+    try:
+        if mode == "propose":
+            print(get_gemini_content())
+        elif mode == "post":
+            res = post_to_linkedin("")
+            if res:
+                print(f"[INFO] LinkedIn Response Status: {res.status_code}")
+                if res.status_code != 201:
+                    print(f"[DEBUG] Full Response: {res.text}")
+    except Exception as e:
+        print(f"[FATAL] Script failed: {e}")
+        sys.exit(1)
