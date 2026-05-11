@@ -38,7 +38,7 @@ def get_gemini_content():
     themes = {
         "Monday": "Cloud Infrastructure Trivia (AWS/Azure/K8s)",
         "Tuesday": "AI Hardware & GPU Scaling (2026 Chips)",
-        "Wednesday": "Networking & Security (Zero Trust, eBPF)",
+        "Wednesday": "Networking & Security(firewalls,ip rules etc) ",
         "Thursday": "Open Source & Linux History",
         "Friday": "SRE Humor: Outages, On-call, and 'DNS is always the culprit'",
         "Saturday": "Future Tech & 2027 Roadmaps"
@@ -69,13 +69,14 @@ def get_gemini_content():
     Task: Write a high-impact LinkedIn post titled '🚀 Tech Bytes'.
 
     Visual & Formatting Rules (STRICT):
-    1. Start with a **bold, punchy opening hook**.
-    2. Use double-line breaks between points (Whitespace is key!).
-    3. Use 🔹 or ⚡ emojis as bullet points.
-    4. **Bold** technical terms, version numbers, or metrics (e.g., **Kubernetes v1.35**).
-    5. Content: 2-3 "Did you know?" facts or insights relevant to 2026.
-    6. Friday Rule: Use professional sarcasm/humor about SRE life.
-    7. Engagement: End with a **bolded question** for the audience.
+    1. **Hook**: Start with a **bold, punchy opening hook** that stops the scroll.
+    2. **Spacing**: Use **double-line breaks** between points. Whitespace is critical!
+    3. **Bullets**: Use **🔹 or ⚡ emojis** exclusively as bullet points.
+    4. **Emphasis**: **Bold** all technical terms, version numbers, or metrics (e.g., **Kubernetes v1.35**, **99.9% Uptime**).
+    5. **The 2026 Factor**: Reference a futuristic but realistic tech milestone.
+    6. Content: 2-3 "Did you know?" facts or insights relevant to 2026.
+    7. Friday Rule: Use professional sarcasm/humor about SRE life.
+    8. Add some interview question with answer on technolgies like linux,AWS,AZURE,Networking,Kubernetes ,SRE etc
     STRICT NARRATIVE RULES:
     1. NO FIRST-PERSON: Never use "I", "me", "my", or "we". 
     2. NO FALSE STORIES: Do not invent stories about "projects I worked on" or "incidents I handled".
