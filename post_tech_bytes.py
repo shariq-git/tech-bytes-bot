@@ -76,6 +76,11 @@ def get_gemini_content():
     5. Content: 2-3 "Did you know?" facts or insights relevant to 2026.
     6. Friday Rule: Use professional sarcasm/humor about SRE life.
     7. Engagement: End with a **bolded question** for the audience.
+    STRICT NARRATIVE RULES:
+    1. NO FIRST-PERSON: Never use "I", "me", "my", or "we". 
+    2. NO FALSE STORIES: Do not invent stories about "projects I worked on" or "incidents I handled".
+    3. PURE OBSERVATION: Focus on universal engineering truths, fun facts, and objective 2026 tech trends.
+    4. HUMOR STYLE: Use observational wit (e.g., "The industry still runs on...") rather than personal stories.
 
     Hashtags: Exactly 5 (#TechBytes #SRE #DevOps #CloudNative #2026Tech)
     Timestamp: 🕒 2026 Insights | {now.strftime('%H:%M')} IST
