@@ -1,17 +1,12 @@
-name: Tech Bytes Daily Pipeline
-
+name: Tech Bytes Automation
 on:
   schedule:
-    # Runs at 04:00 UTC (9:30 AM IST) Mon, Tue, Wed, Thu, Fri, Sat
-    - cron: '0 4 * * 1-6'
-  push:
-    branches:
-      - main
-  workflow_dispatch: 
+    - cron: '30 3 * * 1-5' # 9:00 AM IST, Mon-Fri
+  workflow_dispatch:
 
 permissions:
-  contents: read
-  deployments: write 
+  contents: write
+  deployments: write
 
 jobs:
   generate:
@@ -20,29 +15,22 @@ jobs:
       post_content: ${{ steps.gen.outputs.post_body }}
     steps:
       - uses: actions/checkout@v4
-      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          
+      
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install google-genai requests feedparser
 
       - name: Generate Content
         id: gen
         run: |
-          # 1. Generate the content and save it to the file
           python post_tech_bytes.py propose > draft.txt
-          
-          # 2. Print the file to the console logs for preview
           echo "=========================================="
           echo "🚀 PREVIEW OF TODAY'S POST:"
-          echo "=========================================="
           cat draft.txt
           echo "=========================================="
-          
-          # 3. Save to output variable for the next job
           echo "post_body<<EOF" >> $GITHUB_OUTPUT
           cat draft.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -52,21 +40,13 @@ jobs:
   publish:
     needs: generate
     runs-on: ubuntu-latest
-    environment: Production 
+    environment: Production
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-          
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-        
       - name: Post to LinkedIn
         run: python post_tech_bytes.py post
         env:
           LINKEDIN_TOKEN: ${{ secrets.LINKEDIN_TOKEN }}
           LINKEDIN_AUTHOR_ID: ${{ secrets.LINKEDIN_AUTHOR_ID }}
           POST_CONTENT: ${{ needs.generate.outputs.post_content }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
