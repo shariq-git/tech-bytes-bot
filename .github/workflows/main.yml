@@ -43,6 +43,16 @@ jobs:
     environment: Production
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      # ADD THIS STEP HERE TOO
+      - name: Install dependencies
+        run: pip install google-genai requests feedparser
+
       - name: Post to LinkedIn
         run: python post_tech_bytes.py post
         env:
