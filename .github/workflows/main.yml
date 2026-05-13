@@ -1,22 +1,21 @@
 name: Tech Bytes Automation
+
 on:
   schedule:
-    - cron: '30 3 * * 1-5' # 9:00 AM IST, Mon-Fri
+    - cron: '30 3 * * 1-5'
   workflow_dispatch:
 
 permissions:
-  contents: write
-  deployments: write
+  contents: read
 
 jobs:
   generate:
     runs-on: ubuntu-latest
     outputs:
-      post_content: ${{ steps.gen.outputs.post_body }}
+      post_body: ${{ steps.gen.outputs.post_body }}
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
       
@@ -26,30 +25,26 @@ jobs:
       - name: Generate Content
         id: gen
         run: |
+          # Run the script and capture to a file
           python post_tech_bytes.py propose > draft.txt
-          echo "=========================================="
-          echo "🚀 PREVIEW OF TODAY'S POST:"
-          cat draft.txt
-          echo "=========================================="
-          echo "post_body<<EOF" >> $GITHUB_OUTPUT
+          
+          # Use a delimiter that is unlikely to be in the post text
+          delimiter=$(openssl rand -hex 16)
+          echo "post_body<<$delimiter" >> $GITHUB_OUTPUT
           cat draft.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "$delimiter" >> $GITHUB_OUTPUT
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
   publish:
     needs: generate
     runs-on: ubuntu-latest
-    environment: Production
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
       
-      # ADD THIS STEP HERE TOO
       - name: Install dependencies
         run: pip install google-genai requests feedparser
 
@@ -58,5 +53,5 @@ jobs:
         env:
           LINKEDIN_TOKEN: ${{ secrets.LINKEDIN_TOKEN }}
           LINKEDIN_AUTHOR_ID: ${{ secrets.LINKEDIN_AUTHOR_ID }}
-          POST_CONTENT: ${{ needs.generate.outputs.post_content }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Use the output passed from the generate job
+          POST_CONTENT: ${{ needs.generate.outputs.post_body }}
