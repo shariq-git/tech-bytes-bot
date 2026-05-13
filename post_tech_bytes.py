@@ -1,66 +1,241 @@
 import os
-import requests
+import sys
+import random
 import datetime
+
+import requests
+import feedparser
+
 from google import genai
 
-# Load secrets from GitHub
-L_TOKEN = os.environ['LINKEDIN_TOKEN']
-L_AUTH_ID = os.environ['LINKEDIN_AUTHOR_ID']
-GEM_KEY = os.environ['GEMINI_API_KEY']
+# =========================
+# CONFIG & ENV
+# =========================
+
+L_TOKEN = os.environ.get("LINKEDIN_TOKEN")
+L_AUTH_ID = os.environ.get("LINKEDIN_AUTHOR_ID")
+GEM_KEY = os.environ.get("GEMINI_API_KEY")
+
+RSS_FEEDS = [
+    "https://thenewstack.io/feed/",
+    "https://aws.amazon.com/blogs/aws/feed/",
+    "https://azure.microsoft.com/en-us/blog/feed/",
+    "https://cloud.google.com/blog/products/containers-kubernetes/rss/",
+    "https://kubernetes.io/feed.xml",
+    "https://www.datadoghq.com/blog/rss/"
+]
+
+# =========================
+# GEMINI CONTENT GENERATION
+# =========================
 
 def get_gemini_content():
-    client = genai.Client(api_key=GEM_KEY)
-    
-    # Get current day of the week
-    day = datetime.datetime.now().strftime("%A")
-    
-    # Assign topic based on your specific schedule
-    topic_map = {
-        "Monday": "Kubernetes internals (e.g., ETCD, Control Plane, or CRDs)",
-        "Wednesday": "AWS Cloud Architecture (e.g., EKS, IAM, or Lambda scaling)",
-        "Friday": "Azure Infrastructure (e.g., Azure Kubernetes Service (AKS), App Services, or VNet peering)"
+
+    if not GEM_KEY:
+        raise ValueError("Missing GEMINI_API_KEY")
+
+    client = genai.Client(
+        api_key=GEM_KEY,
+        http_options={"api_version": "v1beta"}
+    )
+
+    ist_offset = datetime.timezone(
+        datetime.timedelta(hours=5, minutes=30)
+    )
+
+    now = datetime.datetime.now(ist_offset)
+
+    day_name = now.strftime("%A")
+
+    themes = {
+        "Monday": "Cloud Infrastructure & High Availability",
+        "Tuesday": "AI Hardware & GPU Scaling (2026 Chips)",
+        "Wednesday": "Azure & Networking (AKS, Entra ID, Security)",
+        "Thursday": "Open Source & Linux Kernel Internals",
+        "Friday": "SRE Humor & Production Lessons",
+        "Saturday": "Future Tech Roadmaps"
     }
-    
-    # Default topic if the day doesn't match (for manual runs)
-    current_topic = topic_map.get(day, "DevOps and SRE best practices")
+
+    current_theme = themes.get(
+        day_name,
+        "General DevOps Insights"
+    )
+
+    articles = []
+
+    for url in RSS_FEEDS:
+
+        try:
+            feed = feedparser.parse(url)
+
+            if not feed.entries:
+                continue
+
+            for entry in feed.entries[:3]:
+                articles.append(entry.title)
+
+        except:
+            continue
+
+    trend_context = ""
+
+    if articles:
+        trend_context = (
+            "LATEST NEWS CONTEXT:\n" +
+            "\n".join(
+                random.sample(
+                    articles,
+                    min(3, len(articles))
+                )
+            )
+        )
 
     prompt = f"""
-    Write a high-quality, technical LinkedIn post titled '🚀 Tech Bytes'.
-    Specific Topic for today: {current_topic}.
-    
-    Requirements:
-    - Start with a catchy hook for a technical audience.
-    - Include one "Deep Dive" fact or advanced technical tip about {current_topic}.
-    - Mention why this is critical for modern SRE/DevOps workflows.
-    - Add a timestamp: '🕒 Posted at [Current Time] IST'.
-    - Use exactly 5 hashtags including #TechBytes #SRE #DevOps and the specific platform (e.g., #Kubernetes, #AWS, or #Azure).
-    """
-    
-    response = client.models.generate_content(model="gemini-3-flash-preview", contents=prompt)
-    return response.text
+CONTEXT: Senior SRE Expert.
+
+CURRENT DAY: {day_name}
+
+THEME: {current_theme}
+
+{trend_context}
+
+TASK:
+Write a LinkedIn post titled:
+'🚀 TECH BYTES: THE {day_name.upper()} SRE PULSE'
+
+RULES:
+1. NO FIRST PERSON
+2. NO FAKE STORIES
+3. NO MARKDOWN
+4. NO ASTERISKS
+5. Use ──▶ bullets
+6. Use ━━━━━━ separator
+7. Exactly 5 hashtags
+
+HASHTAGS:
+#TechBytes #SRE #DevOps #CloudNative #2026Tech
+"""
+
+    models_to_try = [
+        "gemini-2.5-flash",
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-8b"
+    ]
+
+    response_text = ""
+
+    for model_id in models_to_try:
+
+        try:
+            response = client.models.generate_content(
+                model=model_id,
+                contents=prompt
+            )
+
+            if response and response.text:
+                response_text = response.text
+                break
+
+        except:
+            continue
+
+    if not response_text:
+        raise RuntimeError("All Gemini models failed.")
+
+    clean_content = (
+        response_text
+        .replace("**", "")
+        .replace("*", "")
+        .strip()
+    )
+
+    return clean_content
+
+
+# =========================
+# LINKEDIN POSTING
+# =========================
 
 def post_to_linkedin(content):
+
+    if not L_TOKEN:
+        raise ValueError("Missing LINKEDIN_TOKEN")
+
+    if not L_AUTH_ID:
+        raise ValueError("Missing LINKEDIN_AUTHOR_ID")
+
+    if not content:
+        raise ValueError("No content to post")
+
     url = "https://api.linkedin.com/v2/ugcPosts"
+
     headers = {
         "Authorization": f"Bearer {L_TOKEN}",
         "Content-Type": "application/json",
         "X-Restli-Protocol-Version": "2.0.0"
     }
-    
-    data = {
+
+    payload = {
         "author": L_AUTH_ID,
         "lifecycleState": "PUBLISHED",
         "specificContent": {
             "com.linkedin.ugc.ShareContent": {
-                "shareCommentary": {"text": content},
+                "shareCommentary": {
+                    "text": content
+                },
                 "shareMediaCategory": "NONE"
             }
         },
-        "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
+        "visibility": {
+            "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
+        }
     }
-    return requests.post(url, headers=headers, json=data)
+
+    response = requests.post(
+        url,
+        headers=headers,
+        json=payload,
+        timeout=30
+    )
+
+    if response.status_code not in [200, 201]:
+        raise RuntimeError(
+            f"LinkedIn API Error: {response.text}"
+        )
+
+    return response
+
+
+# =========================
+# MAIN
+# =========================
 
 if __name__ == "__main__":
-    content = get_gemini_content()
-    res = post_to_linkedin(content)
-    print(f"Status Code: {res.status_code}")
+
+    mode = sys.argv[1] if len(sys.argv) > 1 else "propose"
+
+    try:
+
+        if mode == "propose":
+
+            content = get_gemini_content()
+
+            print(content)
+
+        elif mode == "post":
+
+            post_content = os.environ.get("POST_CONTENT")
+
+            if not post_content or not post_content.strip():
+                raise ValueError("POST_CONTENT is empty")
+
+            post_to_linkedin(post_content)
+
+        else:
+            raise ValueError(f"Invalid mode: {mode}")
+
+    except Exception as e:
+
+        print(str(e))
+
+        sys.exit(1)
