@@ -1,8 +1,6 @@
 import os
 import sys
-import time
 import random
-import traceback
 import datetime
 
 import requests
@@ -28,36 +26,25 @@ RSS_FEEDS = [
 ]
 
 # =========================
-# HELPERS
-# =========================
-
-def log(msg):
-    print(f"[INFO] {msg}", flush=True)
-
-
-def warn(msg):
-    print(f"[WARN] {msg}", flush=True)
-
-
-def fatal(msg):
-    print(f"[FATAL] {msg}", flush=True)
-
-
-# =========================
 # GEMINI CONTENT GENERATION
 # =========================
 
 def get_gemini_content():
+
     if not GEM_KEY:
         raise ValueError("Missing GEMINI_API_KEY")
 
     client = genai.Client(
         api_key=GEM_KEY,
-        http_options={'api_version': 'v1beta'}
+        http_options={"api_version": "v1beta"}
     )
 
-    ist_offset = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+    ist_offset = datetime.timezone(
+        datetime.timedelta(hours=5, minutes=30)
+    )
+
     now = datetime.datetime.now(ist_offset)
+
     day_name = now.strftime("%A")
 
     themes = {
@@ -69,11 +56,15 @@ def get_gemini_content():
         "Saturday": "Future Tech Roadmaps"
     }
 
-    current_theme = themes.get(day_name, "General DevOps Insights")
+    current_theme = themes.get(
+        day_name,
+        "General DevOps Insights"
+    )
 
     articles = []
 
     for url in RSS_FEEDS:
+
         try:
             feed = feedparser.parse(url)
 
@@ -91,7 +82,12 @@ def get_gemini_content():
     if articles:
         trend_context = (
             "LATEST NEWS CONTEXT:\n" +
-            "\n".join(random.sample(articles, min(3, len(articles))))
+            "\n".join(
+                random.sample(
+                    articles,
+                    min(3, len(articles))
+                )
+            )
         )
 
     prompt = f"""
@@ -129,6 +125,7 @@ HASHTAGS:
     response_text = ""
 
     for model_id in models_to_try:
+
         try:
             response = client.models.generate_content(
                 model=model_id,
@@ -170,8 +167,6 @@ def post_to_linkedin(content):
     if not content:
         raise ValueError("No content to post")
 
-    log("Publishing to LinkedIn...")
-
     url = "https://api.linkedin.com/v2/ugcPosts"
 
     headers = {
@@ -203,11 +198,10 @@ def post_to_linkedin(content):
         timeout=30
     )
 
-    log(f"LinkedIn status code: {response.status_code}")
-
     if response.status_code not in [200, 201]:
-        warn(f"LinkedIn API error: {response.text}")
-        response.raise_for_status()
+        raise RuntimeError(
+            f"LinkedIn API Error: {response.text}"
+        )
 
     return response
 
@@ -224,34 +218,24 @@ if __name__ == "__main__":
 
         if mode == "propose":
 
-            log("Generating content...")
-
             content = get_gemini_content()
 
             print(content)
 
         elif mode == "post":
 
-            log("Reading generated content...")
-
             post_content = os.environ.get("POST_CONTENT")
 
             if not post_content or not post_content.strip():
                 raise ValueError("POST_CONTENT is empty")
 
-            response = post_to_linkedin(post_content)
-
-            log("LinkedIn post published successfully")
-
-            print(response.text)
+            post_to_linkedin(post_content)
 
         else:
             raise ValueError(f"Invalid mode: {mode}")
 
     except Exception as e:
 
-        fatal(str(e))
-
-        traceback.print_exc()
+        print(str(e))
 
         sys.exit(1)
