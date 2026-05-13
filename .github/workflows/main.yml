@@ -16,27 +16,34 @@ jobs:
       post_body: ${{ steps.gen.outputs.post_body }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install google-genai requests feedparser
 
-      - name: Generate Content
+      - name: Generate LinkedIn Draft
         id: gen
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
+          set -e
+
+          # Generate ONLY post content into file
           python post_tech_bytes.py propose > draft.txt
 
-          echo "Generated Draft:"
+          echo "================ GENERATED POST ================"
           cat draft.txt
+          echo "================================================"
 
+          # Multiline GitHub Actions output
           delimiter=$(openssl rand -hex 16)
 
           {
@@ -45,31 +52,39 @@ jobs:
             echo "$delimiter"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Upload Draft Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linkedin-draft
+          path: draft.txt
+
   publish:
     needs: generate
     runs-on: ubuntu-latest
 
-    # THIS CREATES MANUAL APPROVAL
+    # MANUAL APPROVAL REQUIRED
     environment:
-      name: linkedin-production
+      name: Production
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install google-genai requests feedparser
 
-      - name: Show Draft Before Approval
+      - name: Preview Approved Content
         run: |
-          echo "=================================="
+          echo "================ FINAL POST ================"
           echo "${{ needs.generate.outputs.post_body }}"
-          echo "=================================="
+          echo "============================================"
 
       - name: Publish to LinkedIn
         env:
@@ -77,4 +92,5 @@ jobs:
           LINKEDIN_AUTHOR_ID: ${{ secrets.LINKEDIN_AUTHOR_ID }}
           POST_CONTENT: ${{ needs.generate.outputs.post_body }}
         run: |
+          set -e
           python post_tech_bytes.py post
