@@ -13,10 +13,10 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      post_body: ${{ steps.gen.outputs.post_body }}
+      post_body: ${{ steps.generate_post.outputs.post_body }}
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout Repo
         uses: actions/checkout@v4
 
       - name: Setup Python
@@ -30,20 +30,24 @@ jobs:
           pip install google-genai requests feedparser
 
       - name: Generate LinkedIn Draft
-        id: gen
+        id: generate_post
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          set -e
-
-          # Generate ONLY post content into file
+          # Generate ONLY clean post content
           python post_tech_bytes.py propose > draft.txt
 
-          echo "================ GENERATED POST ================"
-          cat draft.txt
-          echo "================================================"
+          echo ""
+          echo "================ GENERATED LINKEDIN POST ================"
+          echo ""
 
-          # Multiline GitHub Actions output
+          cat draft.txt
+
+          echo ""
+          echo "========================================================="
+          echo ""
+
+          # Save multiline output for next job
           delimiter=$(openssl rand -hex 16)
 
           {
@@ -52,22 +56,17 @@ jobs:
             echo "$delimiter"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Upload Draft Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: linkedin-draft
-          path: draft.txt
-
   publish:
     needs: generate
+
     runs-on: ubuntu-latest
 
-    # MANUAL APPROVAL REQUIRED
+    # THIS CREATES THE MANUAL APPROVAL PAUSE
     environment:
       name: Production
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout Repo
         uses: actions/checkout@v4
 
       - name: Setup Python
@@ -80,17 +79,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install google-genai requests feedparser
 
-      - name: Preview Approved Content
-        run: |
-          echo "================ FINAL POST ================"
-          echo "${{ needs.generate.outputs.post_body }}"
-          echo "============================================"
-
       - name: Publish to LinkedIn
         env:
           LINKEDIN_TOKEN: ${{ secrets.LINKEDIN_TOKEN }}
           LINKEDIN_AUTHOR_ID: ${{ secrets.LINKEDIN_AUTHOR_ID }}
           POST_CONTENT: ${{ needs.generate.outputs.post_body }}
         run: |
-          set -e
+          echo "Publishing approved content to LinkedIn..."
+
           python post_tech_bytes.py post
+
+          echo "Post published successfully."
