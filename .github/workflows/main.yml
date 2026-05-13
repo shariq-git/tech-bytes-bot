@@ -10,48 +10,76 @@ permissions:
 
 jobs:
   generate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+
     outputs:
       post_body: ${{ steps.gen.outputs.post_body }}
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      
+
       - name: Install dependencies
-        run: pip install google-genai requests feedparser
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-genai requests feedparser
 
       - name: Generate Content
         id: gen
-        run: |
-          # Run the script and capture to a file
-          python post_tech_bytes.py propose > draft.txt
-          
-          # Use a delimiter that is unlikely to be in the post text
-          delimiter=$(openssl rand -hex 16)
-          echo "post_body<<$delimiter" >> $GITHUB_OUTPUT
-          cat draft.txt >> $GITHUB_OUTPUT
-          echo "$delimiter" >> $GITHUB_OUTPUT
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          set -e
+
+          echo "Generating LinkedIn post..."
+
+          # Capture both stdout and stderr
+          python post_tech_bytes.py propose > draft.txt 2>&1
+
+          echo "Generated draft:"
+          cat draft.txt
+
+          # Multiline GitHub output
+          delimiter=$(openssl rand -hex 16)
+
+          {
+            echo "post_body<<$delimiter"
+            cat draft.txt
+            echo "$delimiter"
+          } >> "$GITHUB_OUTPUT"
 
   publish:
     needs: generate
-    runs-on: ubuntu-latest
+
+    # Only run if generate succeeded
+    if: ${{ needs.generate.result == 'success' }}
+
+    runs-on: ubuntu-24.04
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      
-      - name: Install dependencies
-        run: pip install google-genai requests feedparser
 
-      - name: Post to LinkedIn
-        run: python post_tech_bytes.py post
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-genai requests feedparser
+
+      - name: Publish to LinkedIn
         env:
           LINKEDIN_TOKEN: ${{ secrets.LINKEDIN_TOKEN }}
           LINKEDIN_AUTHOR_ID: ${{ secrets.LINKEDIN_AUTHOR_ID }}
-          # Use the output passed from the generate job
           POST_CONTENT: ${{ needs.generate.outputs.post_body }}
+        run: |
+          echo "Publishing post to LinkedIn..."
+          python post_tech_bytes.py post
