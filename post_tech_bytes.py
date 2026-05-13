@@ -135,12 +135,25 @@ if __name__ == "__main__":
     try:
         if mode == "propose":
             print(get_gemini_content())
+            
         elif mode == "post":
-            res = post_to_linkedin("")
+            # 1. Grab content from the environment (passed from GHA needs.generate)
+            content_from_env = os.environ.get("POST_CONTENT")
+            
+            # 2. Check if it actually exists before calling the API
+            if not content_from_env or content_from_env.strip() == "":
+                print("[FATAL] POST_CONTENT environment variable is empty!")
+                sys.exit(1)
+            
+            # 3. Pass the valid content
+            res = post_to_linkedin(content_from_env)
+            
             if res:
                 print(f"[INFO] LinkedIn Response Status: {res.status_code}")
                 if res.status_code != 201:
                     print(f"[DEBUG] Full Response: {res.text}")
+                    sys.exit(1) # Ensure the pipeline fails if LinkedIn rejects the post
+                    
     except Exception as e:
         print(f"[FATAL] Script failed: {e}")
         sys.exit(1)
