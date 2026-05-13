@@ -48,36 +48,28 @@ def fatal(msg):
 # =========================
 
 def get_gemini_content():
-
     if not GEM_KEY:
         raise ValueError("Missing GEMINI_API_KEY")
 
-    log("Initializing Gemini client...")
-
-    client = genai.Client(api_key=GEM_KEY)
+    client = genai.Client(
+        api_key=GEM_KEY,
+        http_options={'api_version': 'v1beta'}
+    )
 
     ist_offset = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
     now = datetime.datetime.now(ist_offset)
-
     day_name = now.strftime("%A")
 
     themes = {
         "Monday": "Cloud Infrastructure & High Availability",
-        "Tuesday": "AI Hardware & GPU Scaling",
-        "Wednesday": "Azure Networking & Security",
-        "Thursday": "Open Source & Linux Internals",
+        "Tuesday": "AI Hardware & GPU Scaling (2026 Chips)",
+        "Wednesday": "Azure & Networking (AKS, Entra ID, Security)",
+        "Thursday": "Open Source & Linux Kernel Internals",
         "Friday": "SRE Humor & Production Lessons",
-        "Saturday": "Future Tech Roadmaps",
-        "Sunday": "Platform Engineering & Automation"
+        "Saturday": "Future Tech Roadmaps"
     }
 
     current_theme = themes.get(day_name, "General DevOps Insights")
-
-    # =========================
-    # FETCH RSS ARTICLES
-    # =========================
-
-    log("Fetching RSS feeds...")
 
     articles = []
 
@@ -86,116 +78,79 @@ def get_gemini_content():
             feed = feedparser.parse(url)
 
             if not feed.entries:
-                warn(f"No entries found in {url}")
                 continue
 
             for entry in feed.entries[:3]:
-                title = getattr(entry, "title", "").strip()
+                articles.append(entry.title)
 
-                if title:
-                    articles.append(title)
+        except:
+            continue
 
-        except Exception as e:
-            warn(f"RSS feed failed: {url} | {e}")
-
-    sampled_articles = []
+    trend_context = ""
 
     if articles:
-        sampled_articles = random.sample(
-            articles,
-            min(3, len(articles))
+        trend_context = (
+            "LATEST NEWS CONTEXT:\n" +
+            "\n".join(random.sample(articles, min(3, len(articles))))
         )
 
-    trend_context = "\n".join(sampled_articles)
-
-    # =========================
-    # PROMPT
-    # =========================
-
     prompt = f"""
-CONTEXT:
-You are a senior SRE and cloud infrastructure expert.
+CONTEXT: Senior SRE Expert.
 
-CURRENT DAY:
-{day_name}
+CURRENT DAY: {day_name}
 
-TODAY'S THEME:
-{current_theme}
+THEME: {current_theme}
 
-LATEST TECH CONTEXT:
 {trend_context}
 
 TASK:
-Write a professional LinkedIn post titled:
+Write a LinkedIn post titled:
+'🚀 TECH BYTES: THE {day_name.upper()} SRE PULSE'
 
-🚀 TECH BYTES: THE {day_name.upper()} SRE PULSE
+RULES:
+1. NO FIRST PERSON
+2. NO FAKE STORIES
+3. NO MARKDOWN
+4. NO ASTERISKS
+5. Use ──▶ bullets
+6. Use ━━━━━━ separator
+7. Exactly 5 hashtags
 
-STRICT RULES:
-- No markdown
-- No asterisks
-- No fake stories
-- No first-person language
-- No emojis except the title emoji
-- Keep it concise and engaging
-- Use terminal-style bullets: ──▶
-- Use separator: ━━━━━━
-- Add spacing between sections
-- Tone should feel like a senior infrastructure engineer
-
-ENDING:
-Exactly 5 hashtags:
+HASHTAGS:
 #TechBytes #SRE #DevOps #CloudNative #2026Tech
 """
 
-    # =========================
-    # MODEL FALLBACKS
-    # =========================
-
     models_to_try = [
         "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash"
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-8b"
     ]
 
-    response_text = None
+    response_text = ""
 
     for model_id in models_to_try:
-
         try:
-            log(f"Trying model: {model_id}")
-
             response = client.models.generate_content(
                 model=model_id,
                 contents=prompt
             )
 
             if response and response.text:
-                response_text = response.text.strip()
-
-                log(f"Success using {model_id}")
+                response_text = response.text
                 break
 
-            warn(f"Empty response from {model_id}")
-
-        except Exception as e:
-            warn(f"{model_id} failed: {e}")
-            time.sleep(2)
+        except:
+            continue
 
     if not response_text:
-        raise RuntimeError("All Gemini models failed")
-
-    # =========================
-    # FINAL SANITIZATION
-    # =========================
+        raise RuntimeError("All Gemini models failed.")
 
     clean_content = (
         response_text
+        .replace("**", "")
         .replace("*", "")
         .strip()
     )
-
-    if len(clean_content) < 50:
-        raise RuntimeError("Generated content too short")
 
     return clean_content
 
