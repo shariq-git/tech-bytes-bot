@@ -26,6 +26,21 @@ RSS_FEEDS = [
 ]
 
 # =========================
+# LOGGING
+# =========================
+
+def log(msg):
+    print(f"[INFO] {msg}", file=sys.stderr, flush=True)
+
+
+def warn(msg):
+    print(f"[WARN] {msg}", file=sys.stderr, flush=True)
+
+
+def fatal(msg):
+    print(f"[FATAL] {msg}", file=sys.stderr, flush=True)
+
+# =========================
 # GEMINI CONTENT GENERATION
 # =========================
 
@@ -33,6 +48,8 @@ def get_gemini_content():
 
     if not GEM_KEY:
         raise ValueError("Missing GEMINI_API_KEY")
+
+    log("Initializing Gemini client...")
 
     client = genai.Client(
         api_key=GEM_KEY,
@@ -61,6 +78,8 @@ def get_gemini_content():
         "General DevOps Insights"
     )
 
+    log("Fetching RSS feeds...")
+
     articles = []
 
     for url in RSS_FEEDS:
@@ -69,13 +88,14 @@ def get_gemini_content():
             feed = feedparser.parse(url)
 
             if not feed.entries:
+                warn(f"No entries found in {url}")
                 continue
 
             for entry in feed.entries[:3]:
                 articles.append(entry.title)
 
-        except:
-            continue
+        except Exception as e:
+            warn(f"RSS fetch failed for {url}: {str(e)}")
 
     trend_context = ""
 
@@ -91,26 +111,63 @@ def get_gemini_content():
         )
 
     prompt = f"""
-CONTEXT: Senior SRE Expert.
+CONTEXT:
+You are a senior Site Reliability Engineer and cloud infrastructure strategist.
 
-CURRENT DAY: {day_name}
+CURRENT DAY:
+{day_name}
 
-THEME: {current_theme}
+TODAY'S THEME:
+{current_theme}
 
 {trend_context}
 
 TASK:
-Write a LinkedIn post titled:
-'🚀 TECH BYTES: THE {day_name.upper()} SRE PULSE'
+Generate TWO sections.
 
-RULES:
-1. NO FIRST PERSON
-2. NO FAKE STORIES
-3. NO MARKDOWN
-4. NO ASTERISKS
+SECTION 1:
+Write a highly engaging LinkedIn post titled:
+
+🚀 TECH BYTES: THE {day_name.upper()} SRE PULSE
+
+SECTION 2:
+Generate a cinematic AI image prompt for the post.
+
+POST REQUIREMENTS:
+1. Highly professional tone
+2. Strong hook in first 2 lines
+3. Focus on SRE, DevOps, Cloud, AI, Kubernetes, Networking or Security
+4. Mention current industry trends naturally
 5. Use ──▶ bullets
 6. Use ━━━━━━ separator
-7. Exactly 5 hashtags
+7. NO markdown
+8. NO asterisks
+9. NO fake stories
+10. NO first person
+11. Exactly 5 hashtags
+12. Keep concise but insightful
+13. Make it feel premium and futuristic
+
+IMAGE PROMPT REQUIREMENTS:
+1. Futuristic cloud infrastructure
+2. AI-powered DevOps command center
+3. Azure/AWS/Kubernetes inspired environment
+4. Ultra realistic
+5. Cinematic lighting
+6. Dark tech aesthetic
+7. Networking + cybersecurity visuals
+8. Modern datacenter atmosphere
+9. No text inside image
+10. LinkedIn professional quality
+11. 16:9 aspect ratio
+
+OUTPUT FORMAT EXACTLY:
+
+POST:
+<linkedin post>
+
+IMAGE_PROMPT:
+<ai image generation prompt>
 
 HASHTAGS:
 #TechBytes #SRE #DevOps #CloudNative #2026Tech
@@ -127,6 +184,8 @@ HASHTAGS:
     for model_id in models_to_try:
 
         try:
+            log(f"Trying model: {model_id}")
+
             response = client.models.generate_content(
                 model=model_id,
                 contents=prompt
@@ -134,10 +193,11 @@ HASHTAGS:
 
             if response and response.text:
                 response_text = response.text
+                log(f"Success using {model_id}")
                 break
 
-        except:
-            continue
+        except Exception as e:
+            warn(f"{model_id} failed: {str(e)}")
 
     if not response_text:
         raise RuntimeError("All Gemini models failed.")
@@ -166,6 +226,8 @@ def post_to_linkedin(content):
 
     if not content:
         raise ValueError("No content to post")
+
+    log("Publishing to LinkedIn...")
 
     url = "https://api.linkedin.com/v2/ugcPosts"
 
@@ -198,6 +260,8 @@ def post_to_linkedin(content):
         timeout=30
     )
 
+    log(f"LinkedIn status code: {response.status_code}")
+
     if response.status_code not in [200, 201]:
         raise RuntimeError(
             f"LinkedIn API Error: {response.text}"
@@ -218,24 +282,32 @@ if __name__ == "__main__":
 
         if mode == "propose":
 
+            log("Generating content...")
+
             content = get_gemini_content()
 
             print(content)
 
         elif mode == "post":
 
+            log("Reading generated content...")
+
             post_content = os.environ.get("POST_CONTENT")
 
             if not post_content or not post_content.strip():
                 raise ValueError("POST_CONTENT is empty")
 
-            post_to_linkedin(post_content)
+            response = post_to_linkedin(post_content)
+
+            log("LinkedIn post published successfully")
+
+            print(response.text)
 
         else:
             raise ValueError(f"Invalid mode: {mode}")
 
     except Exception as e:
 
-        print(str(e))
+        fatal(str(e))
 
         sys.exit(1)
